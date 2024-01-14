@@ -3,6 +3,10 @@ namespace App\Controllers;
 use App\Models\UserModel;
 use CodeIgniter\API\ResponseTrait;
 use Firebase\JWT\JWT;
+use CodeIgniter\HTTP\Response;
+use CodeIgniter\Session\Session;
+use CodeIgniter\Cookie\Cookie;
+
 
 class Auth extends BaseController{
     use ResponseTrait;
@@ -112,6 +116,49 @@ class Auth extends BaseController{
                 "message"=>$errors
             ]);
         }
+    }
+
+
+    public function login_page(){
+        if($this->request->getMethod()=='post'){
+            $rules = [
+                'password' => 'required|max_length[255]|min_length[6]',
+                'email'    => 'required|max_length[254]|valid_email',
+            ];
+            $validation=\Config\Services::validation();
+            $request=\Config\Services::request();
+            $validation->setRules($rules);            
+            $data['data']=$this->request->getPost();
+            if($validation->withRequest($request)->run()){
+                $validData=$validation->getValidated();
+                $user_details=$this->userModel->where('email',$validData['email'])->first();
+                if($user_details){
+                    $checkPassword=password_verify($validData['password'],$user_details['password']);
+                    if($checkPassword){
+                        $session=session();
+                        $session->set($user_details);
+                        $session->set('isLoggedIn',true);
+                        return redirect('courses');
+                    }else{
+                        $data['error']='Wrong Password';
+                    }
+                    
+                }else{
+                    $data['error']='Wrong email address';
+                }
+            }else{
+                $errors=$validation->getErrors();
+                $data['errors']=$errors;
+            }
+            return view('incld/header').
+            view('Auth/login',$data).
+            view('incld/footer');
+        }else{
+            return view('incld/header').
+            view('Auth/login').
+            view('incld/footer');
+        }
+        
     }
 }
 
